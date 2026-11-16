@@ -1,0 +1,56 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Arrange project
+        run: |
+          mkdir -p app/src/main/java/com/example/phonecleaner
+          if [ -f app-build.gradle.kts ]; then mv app-build.gradle.kts app/build.gradle.kts; fi
+          if [ -f AndroidManifest.xml ]; then mv AndroidManifest.xml app/src/main/AndroidManifest.xml; fi
+          if [ -f Cleaner.kt ]; then mv Cleaner.kt app/src/main/java/com/example/phonecleaner/; fi
+          if [ -f MainActivity.kt ]; then mv MainActivity.kt app/src/main/java/com/example/phonecleaner/; fi
+          find . -path ./.git -prune -o -type f -print | sort
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk PhoneCleaner.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PhoneCleaner-apk
+          path: PhoneCleaner.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: PhoneCleaner - последняя сборка
+          body: Скачайте PhoneCleaner.apk и установите на телефон.
+          files: PhoneCleaner.apk
+          make_latest: true
+          
